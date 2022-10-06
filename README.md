@@ -1,7 +1,7 @@
-#This is the homework No.1
-##problem 1
-##problem 2
-###思路：
+# This is the homework No.1
+## problem 1
+## problem 2
+### 思路：
 BGR转HSV
 提取红⾊和橙⾊ 
 中值滤波
