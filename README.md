@@ -20,9 +20,10 @@ find加-name，通配符*.c，*.o,
 time用于统计耗时  
 
 
-开始在想有什么办法能统计耗时，而且我没太明白shell命令是否shell脚本也可以  
+开始在想有什么办法能统计耗时，而且我没太明白shell命令是否shell脚本也可以
+于是就用shell脚本计时，在文件solve.sh中  
 然后发现 time这个命令可以输出后面这个命令的耗时，不一定非要用脚本才能统计耗时    
-time find test/ -name "*.c" -o -name "*.h" -type f | xargs grep hello  
+time find test/ -name "*.c" -o -name "*.h" -type f | xargs grep hello -n   
 ## problem 2
 ### 思路：
 BGR转HSV  
