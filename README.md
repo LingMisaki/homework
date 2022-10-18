@@ -1,46 +1,29 @@
-# This is the homework No.1
+# This is the homework No.2
 ## 运行方式
 ## problem1
-我在当前目录新建了test文件夹里面随便塞了一些.c .h文件  
-直接运行  time find test/ -name "*.c" -o -name "*.h" -type f | xargs grep hello -n 即可  
-也可以把“/test”部分替换成任意位置，比如“~/”，“/“，但有些目录可能没有权限，这时就要在find前面加上sudo,即 time sudo find ....  
-## problem2 & problem3
-cmakelists.txt中有两个excutable  
+cmakelists.txt中有三个excutable  
 直接运行即可  
 代码文件  
-main.cpp -> problem 2  
-main2.cpp -> problem 3  
-## problem 1
-### 思路
-find加-name，通配符*.c，*.o,  
--o代表或者  
--type f代表只查找文件不查找目录  
-用xargs将find的输出作为grep的输入，在文本中查找hello  
--n可显示匹配到的文本所在行数
-time用于统计耗时  
+main.cpp -> problem 1  
+main2.cpp -> problem 2  
+main3.cpp -> problem 3  
+## 思路
+### problem 1
+用windows的画图找车牌的四个点就行了（左下角会显示坐标），然后直接套函数    
+ps：车牌大小440*140（来自百度）  
+### problem 2
+原理应该就是pdf中的那个红色的大式子  
+converter.block(0, 0, 3, 3) = rot_c_to_w.transpose().cast<double>();  
+converter.block(0, 3, 3, 1) =-rot_c_to_w.transpose().cast<double>() * cam_w;  
+这两行由于我对原理理解不深，自己写时候没有转置，平移量也没有这样处理，还有就是归一化不是特别懂，，导致输出很奇异  
+踩了不少坑发现pdf里有程序可以参考   
+### problem 3
+我的思路是先老生长谈的轮廓提取，然后把点的z坐标随机一下，再用摄像机去拍照  
+摄像机怎么平滑调整我想的办法是更改欧拉角，然后转旋转矩阵，这样比较平滑  
+相机位置就很好改了  
+这两个我都只写了线性改变的
+为了好看circle时候的半径也随机一点  
+世界坐标换算成相机坐标我写成了一个函数这样调用起来比较方便  
 
-
-开始在想有什么办法能统计耗时，而且我没太明白shell命令是否shell脚本也可以
-于是就用shell脚本计时，在文件solve.sh中  
-然后发现 time这个命令可以输出后面这个命令的耗时，不一定非要用脚本才能统计耗时    
-time find test/ -name "*.c" -o -name "*.h" -type f | xargs grep hello -n   
-## problem 2
-### 思路：
-BGR转HSV  
-提取红⾊和橙⾊   
-中值滤波  
-开运算  
-轮廓提取  
-寻找外接矩形  
-## problem 3
-### 思路
-与第二题类似，提取绿色然后找矩形（偏转）  
-由于有拖影，用长宽比足够大来筛选出长条形的矩形，即为运动的子弹  
-子弹位置的标记则直接标记在矩形的中心
-#### 子弹计数
-发现刚射出的子弹的矩形更长，而且角度比较小，以此可以判断是否有新子弹射出  
-若前一帧有子弹，则不计数
-若前一帧无，当前帧有，则计数+1
-然后把数字标记在刚射出的子弹位置
 
     
