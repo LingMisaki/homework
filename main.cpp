@@ -18,6 +18,7 @@ int main(){
     cv::Size siz(width,height);
     cv::warpPerspective(src,result,Mat_Trans,siz);
     cv::imshow("result", result);
+    cv::imwrite("../car_tag.jpg",result);
     cv::waitKey(0);
     
     return 0;

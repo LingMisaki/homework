@@ -40,5 +40,6 @@ int main(){
     }
     std::fclose(stdin);
     cv::imshow("result",result);
+    cv::imwrite("../dragon.jpg",result);
     cv::waitKey(0);
 }
