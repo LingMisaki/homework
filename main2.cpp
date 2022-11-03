@@ -1,45 +1,53 @@
-#include<eigen3/Eigen/Core>
-#include<eigen3/Eigen/Geometry>
-#include<iostream>
-#include<opencv2/opencv.hpp>
-#include<cstdio>
-int cnt;
-double x,y,z;
-cv::Point2d camera(Eigen::Vector4d world){
-    double x_cam_w = 2., y_cam_w = 2., z_cam_w = 2.;
-    Eigen::Quaterniond q={-0.5,0.5,0.5,-0.5}; //0.5i + 0.5j + -0.5k + -0.5
-    Eigen::Matrix4d converter = [&q, &x_cam_w, &y_cam_w, &z_cam_w]() {
-        Eigen::Vector3d cam_w = {x_cam_w, y_cam_w, z_cam_w};        
-        Eigen::Matrix4d converter = Eigen::Matrix4d::Zero();
-        Eigen::Matrix3d rot_c_to_w = q.matrix();
-       
-        converter.block(0, 0, 3, 3) = rot_c_to_w.transpose().cast<double>();
-        converter.block(0, 3, 3, 1) =-rot_c_to_w.transpose().cast<double>() * cam_w;
-        converter(3, 3) = 1.;
-        return converter;
-    }();
-    Eigen::Matrix<double, 3, 4> cam_f;
-    cam_f << 400., 0., 190., 0.,
-             0., 400., 160., 0.,
-             0., 0., 1., 0.;
-
-    Eigen::Vector3d ans=cam_f*converter*world;
-    ans /= ans(2, 0);
-    cv::Point2d centre(ans(0,0),ans(1,0));
-    return centre;
-}
-int main(){
-    std::freopen("../points.txt","r",stdin);
-    std::cin>>cnt;
-    Eigen::Vector4d inputt;
-    cv::Mat result(720,1280,CV_8UC3);
-    for(int i=1;i<=cnt;i++){
-        std::cin>>x>>y>>z;
-        inputt<<x,y,z,1.;
-        cv::circle(result,camera(inputt),0.5,cv::Scalar(255,255,255));
+#include <iostream>
+#include <cstdio>
+#include <string>
+#include <vector>
+#include <ctime>
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <Eigen/Dense>
+#include <opencv2/core/eigen.hpp>
+using namespace std;
+using namespace cv;
+using namespace Eigen;
+int main()
+{
+    srand(0);
+    // generate data with noise
+    const int N = 100;
+    const double k = 2.5;
+    Matrix<double, 1, N> noise = Matrix<double, 1, N>::Random();
+    Matrix<double, 1, N> data = Matrix<double, 1, N>::LinSpaced(0, k * (N - 1));
+    data += noise;
+    std::cout << "a = [" << data << "]" << std::endl;
+    // calculate speed
+    const int Z_N = 1, X_N = 2;
+    Matrix<double, X_N, 1> X;
+    Matrix<double, X_N, X_N> A;
+    Matrix<double, X_N, X_N> P;
+    Matrix<double, X_N, X_N> R;
+    Matrix<double, X_N, Z_N> K;
+    Matrix<double, Z_N, X_N> C;
+    Matrix<double, Z_N, Z_N> Q;
+    X << data[0], 0;
+    A << 1, 1, 0, 1;
+    C << 1, 0;
+    R << 2, 0, 0, 2;
+    Q << 10;
+    std::cout << "b = [0 ";
+    for (int i = 1; i < N; i++)
+    {
+        // 更新预测
+        Matrix<double, X_N, 1> X_k = A * X;
+        P = A * P * A.transpose() + R;
+        // 更新观测
+        K = P * C.transpose() * (C * P * C.transpose() + Q).inverse();
+        Matrix<double, Z_N, 1> Z{data[i]};
+        X = X_k + K * (Z - C * X_k);
+        P = (Matrix<double, X_N, X_N>::Identity() - K * C) * P;
+        std::cout << X[1] << " ";
     }
-    std::fclose(stdin);
-    cv::imshow("result",result);
-    cv::imwrite("../dragon.jpg",result);
-    cv::waitKey(0);
+    std::cout << "]";
+    return 0;
 }
