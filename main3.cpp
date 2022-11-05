@@ -1,108 +1,131 @@
-#include<eigen3/Eigen/Core>
-#include<eigen3/Eigen/Geometry>
-#include<iostream>
-#include<opencv2/opencv.hpp>
-#include<cstdlib>
-#include<cmath>
-cv::Point2d camera(Eigen::Vector4d world,Eigen::Matrix3d rota,double x_cam_w = 1000, double y_cam_w = 0, double z_cam_w = 500.){
-    Eigen::Matrix4d converter = [&x_cam_w, &y_cam_w, &z_cam_w,&rota]() {
-        Eigen::Vector3d cam_w = {x_cam_w, y_cam_w, z_cam_w};        
-        Eigen::Matrix4d converter = Eigen::Matrix4d::Zero();
-        Eigen::Matrix3d rot_c_to_w = rota;
-       
-        converter.block(0, 0, 3, 3) = rot_c_to_w.transpose().cast<double>();
-        converter.block(0, 3, 3, 1) =-rot_c_to_w.transpose().cast<double>() * cam_w;
-        converter(3, 3) = 1.;
-        return converter;
-    }();
-    Eigen::Matrix<double, 3, 4> cam_f;
-    cam_f << 400., 0., 190., 0.,
-             0., 400., 160., 0.,
-             0., 0., 1., 0.;
+#include <opencv2/opencv.hpp>
+#include <iostream>
+using namespace std;
+using namespace cv;
 
-    Eigen::Vector3d ans=cam_f*converter*world;
-    ans /= ans(2, 0);
-    cv::Point2d centre(ans(0,0),ans(1,0));
-    return centre;
-}
-Eigen::Matrix3d eulerAnglesToRotationMatrix(Eigen::Vector3d &theta)
+int main()
 {
-    Eigen::Matrix3d R_x;    // 计算旋转矩阵的X分量
-    R_x <<  1,              0,               0,
-            0,  cos(theta[0]),  -sin(theta[0]),
-            0,  sin(theta[0]),   cos(theta[0]);
-
-    Eigen::Matrix3d R_y;    // 计算旋转矩阵的Y分量
-    R_y <<  cos(theta[1]),   0, sin(theta[1]),
-            0,   1,             0,
-            -sin(theta[1]),  0, cos(theta[1]);
-
-    Eigen::Matrix3d R_z;    // 计算旋转矩阵的Z分量
-    R_z <<  cos(theta[2]), -sin(theta[2]), 0,
-            sin(theta[2]),  cos(theta[2]), 0,
-            0,              0,             1;
-    Eigen::Matrix3d R = R_z * R_y * R_x;
-    return R;
-}
-int main(){
-    srand((unsigned)time(NULL));
-    std::vector<Eigen::Vector4d> points;
-    cv::Mat src=cv::imread("../4001666005799_.pic.png");
-    cv::Mat gray;
-    cv::cvtColor(src,gray,cv::COLOR_BGR2GRAY);
-    cv::Mat thres_result;
-    cv::threshold(gray,thres_result,200,255,cv::THRESH_BINARY);
-    std::vector<std::vector<cv::Point>> contours;
-    std::vector<cv::Vec4i> hierachy;
-    cv::findContours(thres_result,contours,hierachy,cv::RETR_TREE,cv::CHAIN_APPROX_NONE);
-    const int ma=50;
-    const int mi=0;//z坐标的随机范围
-    for(int i=0;i<contours.size();i++){
-        for(int j=0;j<contours[i].size();j++){
-            
-            Eigen::Vector4d world;
-            world<<contours[i][j].x,contours[i][j].y,std::rand()%(ma-mi+1)+mi,1;
-            points.push_back(world);
-        }      
-    }
-    //以上都在轮廓提取，然后把点都变成Vector4d之后push到points数组里面
-    std::vector<double> dot_size;
-    const int dotma=20;
-    const int dotmi=1;//点的大小的随机范围(*10)
-    for(int j=0;j<points.size();j++){
-        dot_size.push_back((double)(std::rand()%(dotma-dotmi+1)+dotmi)/10);
-    }
-    //对点的大小进行随机处理
-    cv::Size2d siz(1280,720);
-    cv::VideoWriter writer("../dragon.mp4",cv::VideoWriter::fourcc('M','P','4','V'),30,siz);
-    //以下为控制相机运动
-    const double camxst=200,camyst=200,camzst=-100;
-    const double camxed=0,camyed=50,camzed=500;
-    double camx_,camy_,camz_;
-    const double angxst=0,angyst=M_PI/2,angzst=M_PI;
-    const double angxed=0,angyed=0,angzed=M_PI;
-    double angx_,angy_,angz_;
-    cv::Mat fraps=cv::Mat::zeros(720,1280,CV_8UC3);
-    int frp_cnt=100;
-    for(int i=0;i<=frp_cnt;i++){
-        fraps=cv::Mat::zeros(720,1280,CV_8UC3);
-        camx_=(camxed-camxst)/frp_cnt*i+camxst;
-        camy_=(camyed-camyst)/frp_cnt*i+camyst;
-        camz_=(camzed-camzst)/frp_cnt*i+camzst;
-        angx_=(angxed-angxst)/frp_cnt*i+angxst;
-        angy_=(angyed-angyst)/frp_cnt*i+angyst;
-        angz_=(angzed-angzst)/frp_cnt*i+angzst;
-        Eigen::Vector3d theta;
-        theta<<angx_,angy_,angz_;
-        Eigen::Matrix3d rota=eulerAnglesToRotationMatrix(theta);
-        for(int j=0;j<points.size();j++){
-            cv::circle(fraps,camera(points[j],rota,camx_,camy_,camz_),dot_size[j],cv::Scalar(255,255,255),-1);
+    int board_width = 11, board_height = 8;
+    int board_N = board_width * board_height;
+    Size board_size(board_width, board_height);
+    vector<Point2f> points;
+    vector<vector<Point2f>> points_useful;
+    Mat gray_img;
+    bool found = false;
+    Size img_size;
+    for (int i = 0; i <= 19; i++)
+    {
+        String calib1src = "../datapack/calib1/";
+        Mat src = imread(calib1src.append(to_string(i)).append(".jpg"));
+        if (i == 0)
+        {
+            img_size.width = src.cols;
+            img_size.height = src.rows;
         }
-        cv::imshow("Dragon",fraps);
-        cv::waitKey(50); 
-        writer.write(fraps);
+        found = findChessboardCorners(src, board_size, points);
+        if (found && points.size() == board_N)
+        {
+            cvtColor(src, gray_img, COLOR_BGR2GRAY);
+            find4QuadCornerSubpix(gray_img, points, Size(5, 5));
+            points_useful.push_back(points);
+            Mat drawn_img = src.clone();
+            drawChessboardCorners(drawn_img, board_size, points, found);
+            imshow("Corners", drawn_img);
+            waitKey(50);
+        }
+        else
+            cout << "Not All Corners Are Found In Image " << i << endl;
+        points.clear();
     }
-    cv::imshow("Dragon",fraps);
-    cv::waitKey(0); 
+    cout << points_useful.size() << " useful chess boards" << endl;
+
+    Size square_size(10, 10);
+    std::vector<std::vector<Point3f>> point_grid_pos;
+    std::vector<Point3f> point_grid_pos_buf;
+    std::vector<int> point_count;
+    Mat camera_matrix(3, 3, CV_32FC1, Scalar::all(0));
+    Mat dist_coeffs(1, 5, CV_32FC1, Scalar::all(0));
+    std::vector<Mat> rvecs;
+    std::vector<Mat> tvecs;
+    for (int i = 0; i < points_useful.size(); i++)
+    {
+        for (int j = 0; j < board_height; j++)
+        {
+            for (int k = 0; k < board_width; k++)
+            {
+                Point3f pt;
+                pt.x = k * square_size.width;
+                pt.y = j * square_size.height;
+                pt.z = 0;
+                point_grid_pos_buf.push_back(pt);
+            }
+        }
+        point_grid_pos.push_back(point_grid_pos_buf);
+        point_grid_pos_buf.clear();
+        point_count.push_back(board_height * board_width);
+    }
+    std::cout << calibrateCamera(point_grid_pos, points_useful, img_size, camera_matrix, dist_coeffs, rvecs, tvecs) << std::endl;
+    std::cout << camera_matrix << std::endl
+              << dist_coeffs << std::endl;
+    
+
+    board_width = 9, board_height = 6;
+    board_N = board_width * board_height;
+    board_size.width=board_width;
+    board_size.height=board_height;
+    points.clear();
+    points_useful.clear();
+    found = false;
+    for (int i = 0; i <= 23; i++)
+    {
+        String calib1src = "../datapack/calib2/";
+        Mat src = imread(calib1src.append(to_string(i)).append("_orig.jpg"));
+        if (i == 0)
+        {
+            img_size.width = src.cols;
+            img_size.height = src.rows;
+        }
+        found = findChessboardCorners(src, board_size, points);
+        if (found && points.size() == board_N)
+        {
+            cvtColor(src, gray_img, COLOR_BGR2GRAY);
+            find4QuadCornerSubpix(gray_img, points, Size(5, 5));
+            points_useful.push_back(points);
+            Mat drawn_img = src.clone();
+            drawChessboardCorners(drawn_img, board_size, points, found);
+            imshow("Corners", drawn_img);
+            waitKey(50);
+        }
+        else
+            cout << "Not All Corners Are Found In Image " << i << endl;
+        points.clear();
+    }
+    cout << points_useful.size() << " useful chess boards" << endl;
+
+    point_grid_pos.clear();
+    point_grid_pos_buf.clear();
+    point_count.clear();
+    rvecs.clear();
+    tvecs.clear();
+    for (int i = 0; i < points_useful.size(); i++)
+    {
+        for (int j = 0; j < board_height; j++)
+        {
+            for (int k = 0; k < board_width; k++)
+            {
+                Point3f pt;
+                pt.x = k * square_size.width;
+                pt.y = j * square_size.height;
+                pt.z = 0;
+                point_grid_pos_buf.push_back(pt);
+            }
+        }
+        point_grid_pos.push_back(point_grid_pos_buf);
+        point_grid_pos_buf.clear();
+        point_count.push_back(board_height * board_width);
+    }
+    std::cout << calibrateCamera(point_grid_pos, points_useful, img_size, camera_matrix, dist_coeffs, rvecs, tvecs) << std::endl;
+    std::cout << camera_matrix << std::endl
+              << dist_coeffs << std::endl;
     return 0;
 }
